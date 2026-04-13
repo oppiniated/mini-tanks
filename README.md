@@ -1,18 +1,24 @@
 # Mini Tanks 🪖
 
-A browser-based 2-player artillery game built with vanilla JavaScript and Canvas. No dependencies, no build step.
+A browser-based 2-player artillery game built with vanilla JavaScript and Canvas.
 
-## Play
-
-Because the game uses ES modules, it must be served over HTTP:
+## Getting Started
 
 ```bash
-npx serve .
-# or
-python3 -m http.server 8080
+npm install
+npm run dev      # dev server at http://localhost:5173
 ```
 
-Then open `http://localhost:3000` (or `8080`) in your browser.
+## Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start Vite dev server with hot reload |
+| `npm run build` | Bundle and minify into `dist/` for production |
+| `npm run preview` | Serve the production build locally |
+| `npm run lint` | Check for lint issues with Biome |
+| `npm run lint:fix` | Auto-fix lint issues |
+| `npm run format` | Format source files |
 
 ## How to Play
 
@@ -69,4 +75,4 @@ src/
 
 ## Development
 
-No build tools required — edit any `.js` or `.css` file and refresh the browser. See [`CONTRIBUTING`](.github/copilot-instructions.md) for architecture notes on adding new weapons.
+Edit any `.js` or `.css` file and Vite will hot-reload the browser automatically. See [`CONTRIBUTING`](.github/copilot-instructions.md) for architecture notes on adding new weapons.
