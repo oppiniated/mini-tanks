@@ -1,0 +1,26 @@
+{
+  "name": "pocket-tanks",
+  "version": "1.0.0",
+  "description": "A browser-based 2-player artillery game built with vanilla JavaScript and Canvas. No dependencies, no build step.",
+  "main": "index.js",
+  "scripts": {
+    "lint": "biome check src/",
+    "lint:fix": "biome check --write src/",
+    "format": "biome format --write src/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oppiniated/mini-tanks.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/oppiniated/mini-tanks/issues"
+  },
+  "homepage": "https://github.com/oppiniated/mini-tanks#readme",
+  "devDependencies": {
+    "@biomejs/biome": "2.4.11"
+  }
+}
