@@ -158,6 +158,32 @@ export class Engine {
 			this.activeTank().power = val;
 		});
 
+		document.addEventListener("keydown", (e) => {
+			if (this.state !== "AIMING") return;
+			// Prevent arrow keys from scrolling the page
+			if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+				e.preventDefault();
+			}
+			const tank = this.activeTank();
+			if (e.key === "ArrowUp") {
+				tank.targetAngle = (tank.targetAngle + 1) % 360;
+				this.ui.angleSlider.value = tank.targetAngle;
+				this.ui.angleVal.innerText = tank.targetAngle;
+			} else if (e.key === "ArrowDown") {
+				tank.targetAngle = (tank.targetAngle - 1 + 360) % 360;
+				this.ui.angleSlider.value = tank.targetAngle;
+				this.ui.angleVal.innerText = tank.targetAngle;
+			} else if (e.key === "ArrowRight") {
+				tank.power = Math.min(100, tank.power + 1);
+				this.ui.powerSlider.value = tank.power;
+				this.ui.powerVal.innerText = tank.power;
+			} else if (e.key === "ArrowLeft") {
+				tank.power = Math.max(0, tank.power - 1);
+				this.ui.powerSlider.value = tank.power;
+				this.ui.powerVal.innerText = tank.power;
+			}
+		});
+
 		this.ui.fireBtn.addEventListener("click", () => {
 			if (this.state === "AIMING") {
 				this.fireWeapon();
