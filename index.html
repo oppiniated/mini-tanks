@@ -28,7 +28,7 @@
                     </div>
                 </div>
                 <div class="player-info p2-info">
-                    <span class="player-name">Player 2</span>
+                    <span class="player-name" id="p2-name">Player 2</span>
                     <div class="health-bar-container"><div id="p2-health" class="health-bar"></div></div>
                     <span id="p2-score">Score: 0</span>
                     <span id="p2-turns" style="font-size:0.85rem; color:#94a3b8">Turns left: 10</span>
@@ -55,6 +55,35 @@
                     </div>
                 </div>
                 <button id="fire-btn">FIRE</button>
+            </div>
+
+            <!-- Start / Mode Select Screen -->
+            <div id="start-screen">
+                <h1 style="font-size:2.5rem; margin-bottom: 8px;">🎯 Mini Tanks</h1>
+                <p style="color:#94a3b8; margin-bottom:32px;">Choose your game mode</p>
+                <div style="display:flex; gap:16px; justify-content:center; margin-bottom:24px;">
+                    <button id="btn-1p" class="mode-btn">⚔️ 1 Player</button>
+                    <button id="btn-2p" class="mode-btn">👥 2 Players</button>
+                </div>
+                <div id="color-section" class="hidden">
+                    <div id="p1-color-row">
+                        <p class="color-label" id="p1-color-label">Your Tank Color</p>
+                        <div class="color-swatches" id="p1-swatches"></div>
+                    </div>
+                    <div id="p2-color-row" class="hidden">
+                        <p class="color-label">Player 2 Color</p>
+                        <div class="color-swatches" id="p2-swatches"></div>
+                    </div>
+                    <div id="difficulty-select" class="hidden">
+                        <p class="color-label" style="margin-top:8px;">Difficulty</p>
+                        <div style="display:flex; gap:12px; justify-content:center; margin-bottom:4px;">
+                            <button class="diff-btn" data-diff="easy">😊 Easy</button>
+                            <button class="diff-btn selected" data-diff="medium">🎯 Medium</button>
+                            <button class="diff-btn" data-diff="hard">💀 Hard</button>
+                        </div>
+                    </div>
+                    <button id="start-btn" class="mode-btn start-btn">▶ Start Game</button>
+                </div>
             </div>
 
             <!-- Weapon Selection Modal -->

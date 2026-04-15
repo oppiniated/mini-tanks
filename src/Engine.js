@@ -28,6 +28,47 @@ import { Splitter } from "./weapons/Splitter.js";
 import { Spray } from "./weapons/Spray.js";
 import { Volcano } from "./weapons/Volcano.js";
 
+// Weapons the AI will randomly cycle through — excludes terrain-only tools
+// (DirtMover, DirtBall) and AirStrike (whose angle maps to canvas X, not trajectory).
+const AI_WEAPONS = [
+	SingleShot,
+	HeavyShell,
+	MegaNuke,
+	BabyNuke,
+	Sniper,
+	Laser,
+	Napalm,
+	Spray,
+	FunkyBomb,
+	Splitter,
+	ClusterBomb,
+	Bouncer,
+	Boomerang,
+	Roller,
+	HomingMissile,
+	Earthquake,
+	Jackhammer,
+	Firecracker,
+	PileDriver,
+	Volcano,
+	LightningStrike,
+	MeteorShower,
+	ScatterShot,
+];
+
+const TANK_COLORS = [
+	"#3b82f6", // Blue
+	"#10b981", // Emerald
+	"#f43f5e", // Rose
+	"#f59e0b", // Amber
+	"#8b5cf6", // Violet
+	"#ec4899", // Pink
+	"#06b6d4", // Cyan
+	"#84cc16", // Lime
+	"#f97316", // Orange
+	"#e2e8f0", // Silver
+];
+
 const WEAPONS = [
 	SingleShot,
 	HeavyShell,
@@ -72,17 +113,22 @@ export class Engine {
 		this.windEnabled = true;
 		this.targetMoveX = 0;
 		this.moveDirection = 0;
+		this.singlePlayer = false;
+		this.aiDifficulty = "medium"; // 'easy' | 'medium' | 'hard'
+		this.p1Color = TANK_COLORS[0];
+		this.p2Color = TANK_COLORS[1];
 
 		this.setupUI();
 	}
 
 	init() {
 		this.resize();
-		this.reset();
 		requestAnimationFrame((t) => this.loop(t));
+		// Start screen is shown by default; game starts when player picks a mode
 	}
 
 	reset() {
+		this.aiThinking = false;
 		this.projectiles = [];
 		this.particles = [];
 
@@ -90,19 +136,43 @@ export class Engine {
 		this.terrain.generate();
 
 		const p1X = this.canvas.width * 0.2;
-		this.p1 = new Tank(1, p1X, this.terrain.getSurfaceHeight(p1X), "#3b82f6");
+		this.p1 = new Tank(
+			1,
+			p1X,
+			this.terrain.getSurfaceHeight(p1X),
+			this.p1Color,
+		);
 		this.p1.targetAngle = 45;
 		this.p1.weaponClass = SingleShot;
 
 		const p2X = this.canvas.width * 0.8;
-		this.p2 = new Tank(2, p2X, this.terrain.getSurfaceHeight(p2X), "#10b981");
+		this.p2 = new Tank(
+			2,
+			p2X,
+			this.terrain.getSurfaceHeight(p2X),
+			this.p2Color,
+		);
 		this.p2.targetAngle = 135;
 		this.p2.weaponClass = SingleShot;
+
+		const p2Label = document.getElementById("p2-name");
+		if (p2Label) p2Label.innerText = this.singlePlayer ? "CPU" : "Player 2";
 
 		this.changeTurn(1);
 		this.generateWind();
 		this.state = "AIMING";
 		this.updateScoreUI();
+	}
+
+	startGame(mode) {
+		this.singlePlayer = mode === "single";
+		// CPU auto-picks a color that doesn't clash with P1's choice
+		if (this.singlePlayer) {
+			this.p2Color =
+				TANK_COLORS.find((c) => c !== this.p1Color) ?? TANK_COLORS[1];
+		}
+		document.getElementById("start-screen").classList.add("hidden");
+		this.reset();
 	}
 
 	resize() {
@@ -147,7 +217,11 @@ export class Engine {
 
 		document.getElementById("restart-btn").addEventListener("click", () => {
 			document.getElementById("game-over-screen").classList.add("hidden");
-			this.reset();
+			document.getElementById("color-section").classList.add("hidden");
+			document.getElementById("difficulty-select").classList.add("hidden");
+			document.getElementById("btn-1p").classList.remove("selected");
+			document.getElementById("btn-2p").classList.remove("selected");
+			document.getElementById("start-screen").classList.remove("hidden");
 		});
 
 		this.ui.windToggle.addEventListener("change", (e) => {
@@ -173,7 +247,11 @@ export class Engine {
 		});
 
 		document.addEventListener("keydown", (e) => {
-			if (this.state !== "AIMING") return;
+			if (
+				this.state !== "AIMING" ||
+				(this.singlePlayer && this.currentPlayer === 2)
+			)
+				return;
 			// Prevent arrow keys from scrolling the page
 			if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
 				e.preventDefault();
@@ -211,6 +289,65 @@ export class Engine {
 
 		this.ui.closeModalBtn.addEventListener("click", () => {
 			this.ui.weaponModal.classList.add("hidden");
+		});
+
+		// Generate color swatches for both players
+		const makeSwatches = (containerId, isP1) => {
+			const container = document.getElementById(containerId);
+			const defaultIdx = isP1 ? 0 : 1;
+			TANK_COLORS.forEach((color, i) => {
+				const btn = document.createElement("button");
+				btn.className = `color-swatch${i === defaultIdx ? " selected" : ""}`;
+				btn.style.background = color;
+				btn.title = color;
+				btn.addEventListener("click", () => {
+					container.querySelectorAll(".color-swatch").forEach((b) => {
+						b.classList.remove("selected");
+					});
+					btn.classList.add("selected");
+					if (isP1) this.p1Color = color;
+					else this.p2Color = color;
+				});
+				container.appendChild(btn);
+			});
+		};
+		makeSwatches("p1-swatches", true);
+		makeSwatches("p2-swatches", false);
+
+		// Difficulty buttons update aiDifficulty (medium is default / pre-selected)
+		document.querySelectorAll(".diff-btn").forEach((btn) => {
+			btn.addEventListener("click", () => {
+				document.querySelectorAll(".diff-btn").forEach((b) => {
+					b.classList.remove("selected");
+				});
+				btn.classList.add("selected");
+				this.aiDifficulty = btn.dataset.diff;
+			});
+		});
+
+		// Mode buttons reveal color section (+ difficulty for 1P)
+		document.getElementById("btn-1p").addEventListener("click", () => {
+			this._pendingMode = "single";
+			document.getElementById("p1-color-label").innerText = "Your Tank Color";
+			document.getElementById("p2-color-row").classList.add("hidden");
+			document.getElementById("difficulty-select").classList.remove("hidden");
+			document.getElementById("color-section").classList.remove("hidden");
+			document.getElementById("btn-1p").classList.add("selected");
+			document.getElementById("btn-2p").classList.remove("selected");
+		});
+
+		document.getElementById("btn-2p").addEventListener("click", () => {
+			this._pendingMode = "two";
+			document.getElementById("p1-color-label").innerText = "Player 1 Color";
+			document.getElementById("p2-color-row").classList.remove("hidden");
+			document.getElementById("difficulty-select").classList.add("hidden");
+			document.getElementById("color-section").classList.remove("hidden");
+			document.getElementById("btn-2p").classList.add("selected");
+			document.getElementById("btn-1p").classList.remove("selected");
+		});
+
+		document.getElementById("start-btn").addEventListener("click", () => {
+			this.startGame(this._pendingMode ?? "two");
 		});
 	}
 
@@ -262,11 +399,12 @@ export class Engine {
 		this.ui.powerSlider.value = tank.power;
 		this.ui.powerVal.innerText = Math.round(tank.power);
 
-		this.ui.turnIndicator.innerText = `Player ${player}'s Turn`;
-		this.ui.turnIndicator.style.color = player === 1 ? "#3b82f6" : "#10b981";
-
-		const w = new tank.weaponClass();
-		this.ui.weaponSelectBtn.innerText = `Weapon: ${w.name}`;
+		const name = this.singlePlayer && player === 2 ? "CPU" : `Player ${player}`;
+		this.ui.turnIndicator.innerText = `${name}'s Turn`;
+		this.ui.turnIndicator.style.color = (
+			player === 1 ? this.p1 : this.p2
+		).color;
+		this.ui.weaponSelectBtn.innerText = `Weapon: ${new tank.weaponClass().name}`;
 
 		tank.movesLeft = 4;
 		this.ui.movesLeftVal.innerText = tank.movesLeft;
@@ -276,6 +414,97 @@ export class Engine {
 		this.state = "AIMING";
 		this.ui.fireBtn.disabled = tank.turnsLeft <= 0;
 		this.ui.fireBtn.style.opacity = tank.turnsLeft <= 0 ? 0.5 : 1;
+
+		// In single-player mode, schedule AI turn for player 2
+		if (this.singlePlayer && player === 2) {
+			this.ui.fireBtn.disabled = true;
+			this.ui.fireBtn.style.opacity = 0.5;
+			this.ui.moveLeftBtn.disabled = true;
+			this.ui.moveRightBtn.disabled = true;
+			this.scheduleAITurn();
+		}
+	}
+
+	scheduleAITurn() {
+		this.aiThinking = true;
+		this.ui.turnIndicator.innerText = "CPU thinking...";
+		this.ui.turnIndicator.style.color = "#a78bfa";
+
+		const noise = { easy: 22, medium: 10, hard: 3 }[this.aiDifficulty] ?? 10;
+		const powerNoise =
+			{ easy: 20, medium: 10, hard: 4 }[this.aiDifficulty] ?? 10;
+
+		setTimeout(() => {
+			if (this.state !== "AIMING" || this.currentPlayer !== 2) return;
+			this.aiThinking = false;
+
+			const tank = this.p2;
+			const target = this.p1;
+
+			// Pick a random offensive weapon
+			const chosenWeapon =
+				AI_WEAPONS[Math.floor(Math.random() * AI_WEAPONS.length)];
+			tank.weaponClass = chosenWeapon;
+			this.ui.weaponSelectBtn.innerText = `Weapon: ${new chosenWeapon().name}`;
+
+			const basePower = 50 + Math.random() * 30; // 50–80
+			const bestAngle = this.aiComputeAngle(tank, target, basePower);
+
+			const angleNoise = (Math.random() - 0.5) * 2 * noise;
+			const pNoise = (Math.random() - 0.5) * 2 * powerNoise;
+
+			tank.targetAngle = Math.max(1, Math.min(179, bestAngle + angleNoise));
+			tank.power = Math.max(10, Math.min(100, Math.round(basePower + pNoise)));
+
+			this.ui.angleSlider.value = tank.targetAngle;
+			this.ui.angleVal.innerText = Math.round(tank.targetAngle);
+			this.ui.powerSlider.value = tank.power;
+			this.ui.powerVal.innerText = tank.power;
+
+			this.fireWeapon();
+		}, 1500);
+	}
+
+	aiComputeAngle(tank, target, power) {
+		const v = power * 10;
+		const g = 600;
+		const wind = this.wind;
+		const dt = 0.05;
+		const maxTime = 6.0;
+
+		const x0 = tank.x;
+		const y0 = tank.y - tank.height;
+
+		let bestAngle = 135;
+		let bestDist = Infinity;
+
+		for (let deg = 1; deg < 180; deg++) {
+			const rad = (deg * Math.PI) / 180;
+			let x = x0;
+			let y = y0;
+			let vx = Math.cos(rad) * v;
+			let vy = -Math.sin(rad) * v;
+
+			let closestDist = Infinity;
+			for (let t = 0; t < maxTime; t += dt) {
+				x += vx * dt;
+				y += vy * dt;
+				vy += g * dt;
+				vx += wind * 1.5 * dt;
+
+				if (y > this.canvas.height + 100) break;
+
+				const dist = Math.hypot(x - target.x, y - target.y);
+				if (dist < closestDist) closestDist = dist;
+			}
+
+			if (closestDist < bestDist) {
+				bestDist = closestDist;
+				bestAngle = deg;
+			}
+		}
+
+		return bestAngle;
 	}
 
 	startMove(direction) {
@@ -377,15 +606,16 @@ export class Engine {
 		document.getElementById("game-over-screen").classList.remove("hidden");
 		const s1 = this.p1.score,
 			s2 = this.p2.score;
+		const p2Name = this.singlePlayer ? "CPU" : "Player 2";
 		let msg;
 		if (s1 > s2) {
 			msg = `Player 1 Wins! (${s1} pts)`;
 		} else if (s2 > s1) {
-			msg = `Player 2 Wins! (${s2} pts)`;
+			msg = `${p2Name} Wins! (${s2} pts)`;
 		} else if (this.p1.health > this.p2.health) {
 			msg = `Player 1 Wins! (health tiebreaker)`;
 		} else if (this.p2.health > this.p1.health) {
-			msg = `Player 2 Wins! (health tiebreaker)`;
+			msg = `${p2Name} Wins! (health tiebreaker)`;
 		} else {
 			msg = `It's a Draw!`;
 		}
@@ -399,9 +629,9 @@ export class Engine {
 		if (this.p1.health <= 0 || this.p2.health <= 0) {
 			this.state = "GAME_OVER";
 			document.getElementById("game-over-screen").classList.remove("hidden");
-			const winner = this.p1.health > 0 ? 1 : 2;
-			document.getElementById("winner-text").innerText =
-				`Player ${winner} Wins!`;
+			const p2Name = this.singlePlayer ? "CPU" : "Player 2";
+			const winner = this.p1.health > 0 ? "Player 1" : p2Name;
+			document.getElementById("winner-text").innerText = `${winner} Wins!`;
 		}
 	}
 
@@ -416,6 +646,7 @@ export class Engine {
 	}
 
 	update(dt) {
+		if (!this.terrain) return;
 		if (this.state === "GAME_OVER") return;
 
 		if (this.state === "MOVING") {
@@ -534,6 +765,7 @@ export class Engine {
 	}
 
 	draw() {
+		if (!this.terrain) return;
 		// Clear main canvas (the background is handled by CSS on the container)
 		this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 

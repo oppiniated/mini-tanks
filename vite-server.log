@@ -1,0 +1,11 @@
+
+> pocket-tanks@1.0.0 dev
+> vite
+
+
+  VITE v8.0.8  ready in 169 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+19:18:06 [vite] (client) page reload src/Engine.js

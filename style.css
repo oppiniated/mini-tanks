@@ -69,7 +69,7 @@ canvas {
 }
 
 /* Enable pointer events only on interactive elements */
-#top-bar, #control-panel, .modal-content, #game-over-screen {
+#top-bar, #control-panel, .modal-content, #game-over-screen, #start-screen {
     pointer-events: auto;
 }
 
@@ -315,4 +315,80 @@ button:active {
 #winner-text {
     font-size: 4rem;
     text-shadow: 0 0 20px rgba(255,255,255,0.3);
+}
+
+/* Start Screen */
+#start-screen {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(2, 6, 23, 0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    color: white;
+    text-align: center;
+}
+#start-screen.hidden { display: none; }
+
+.mode-btn {
+    padding: 16px 36px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border: 2px solid #334155;
+    border-radius: 12px;
+    background: #1e293b;
+    color: white;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.mode-btn:hover { background: #334155; border-color: #60a5fa; transform: translateY(-2px); }
+
+.diff-btn {
+    padding: 10px 24px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    background: #1e293b;
+    color: white;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.diff-btn:hover { background: #334155; border-color: #a78bfa; }
+.diff-btn.selected { border-color: #a78bfa; background: #2d1f6e; }
+
+.mode-btn.selected { border-color: #60a5fa; background: #1e3a5f; }
+.mode-btn.start-btn { margin-top: 24px; background: #1d4ed8; border-color: #3b82f6; }
+.mode-btn.start-btn:hover { background: #2563eb; border-color: #60a5fa; }
+
+.color-label {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+}
+
+.color-swatches {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.color-swatch {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.12s;
+    padding: 0;
+}
+.color-swatch:hover { transform: scale(1.18); }
+.color-swatch.selected {
+    box-shadow: 0 0 0 3px #fff, 0 0 0 5px rgba(255,255,255,0.25);
+    transform: scale(1.1);
 }
