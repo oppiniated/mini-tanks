@@ -69,7 +69,7 @@ canvas {
 }
 
 /* Enable pointer events only on interactive elements */
-#top-bar, #control-panel, .modal-content, #game-over-screen {
+#top-bar, #control-panel, .modal-content, #game-over-screen, #start-screen {
     pointer-events: auto;
 }
 
@@ -316,3 +316,46 @@ button:active {
     font-size: 4rem;
     text-shadow: 0 0 20px rgba(255,255,255,0.3);
 }
+
+/* Start Screen */
+#start-screen {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(2, 6, 23, 0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    color: white;
+    text-align: center;
+}
+#start-screen.hidden { display: none; }
+
+.mode-btn {
+    padding: 16px 36px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border: 2px solid #334155;
+    border-radius: 12px;
+    background: #1e293b;
+    color: white;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.mode-btn:hover { background: #334155; border-color: #60a5fa; transform: translateY(-2px); }
+
+.diff-btn {
+    padding: 10px 24px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    background: #1e293b;
+    color: white;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.diff-btn:hover { background: #334155; border-color: #a78bfa; }
+.diff-btn.selected { border-color: #a78bfa; background: #2d1f6e; }

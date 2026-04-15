@@ -28,7 +28,7 @@
                     </div>
                 </div>
                 <div class="player-info p2-info">
-                    <span class="player-name">Player 2</span>
+                    <span class="player-name" id="p2-name">Player 2</span>
                     <div class="health-bar-container"><div id="p2-health" class="health-bar"></div></div>
                     <span id="p2-score">Score: 0</span>
                     <span id="p2-turns" style="font-size:0.85rem; color:#94a3b8">Turns left: 10</span>
@@ -55,6 +55,24 @@
                     </div>
                 </div>
                 <button id="fire-btn">FIRE</button>
+            </div>
+
+            <!-- Start / Mode Select Screen -->
+            <div id="start-screen">
+                <h1 style="font-size:2.5rem; margin-bottom: 8px;">🎯 Mini Tanks</h1>
+                <p style="color:#94a3b8; margin-bottom:32px;">Choose your game mode</p>
+                <div style="display:flex; gap:16px; justify-content:center; margin-bottom:24px;">
+                    <button id="btn-1p" class="mode-btn">⚔️ 1 Player</button>
+                    <button id="btn-2p" class="mode-btn">👥 2 Players</button>
+                </div>
+                <div id="difficulty-select" class="hidden">
+                    <p style="color:#94a3b8; margin-bottom:12px;">Select Difficulty</p>
+                    <div style="display:flex; gap:12px; justify-content:center;">
+                        <button class="diff-btn" data-diff="easy">😊 Easy</button>
+                        <button class="diff-btn" data-diff="medium">🎯 Medium</button>
+                        <button class="diff-btn" data-diff="hard">💀 Hard</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Weapon Selection Modal -->
