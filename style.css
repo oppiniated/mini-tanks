@@ -151,6 +151,28 @@ canvas {
     gap: 5px;
 }
 
+#sfx-btn {
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 3px 8px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    margin-top: 6px;
+    line-height: 1;
+    transition: opacity 0.2s;
+    position: relative;
+    z-index: 110;
+}
+
+#sfx-btn:hover {
+    opacity: 0.7;
+}
+
+#sfx-btn.muted {
+    opacity: 0.4;
+}
+
 #control-panel {
     background: var(--panel-bg);
     backdrop-filter: blur(12px);
