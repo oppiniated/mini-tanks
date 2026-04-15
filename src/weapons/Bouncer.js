@@ -41,6 +41,7 @@ class BouncerProjectile extends Projectile {
 			this.vx *= 0.9;
 			this.y -= 4;
 			this.bounces++;
+			engine.audio.playBounce();
 			return false; // keep alive
 		}
 		// Final hit — explode

@@ -1,3 +1,4 @@
+import { AudioManager } from "./Audio.js";
 import { applyForces } from "./Physics.js";
 import { Tank } from "./Tank.js";
 import { Terrain } from "./Terrain.js";
@@ -117,6 +118,7 @@ export class Engine {
 		this.aiDifficulty = "medium"; // 'easy' | 'medium' | 'hard'
 		this.p1Color = TANK_COLORS[0];
 		this.p2Color = TANK_COLORS[1];
+		this.audio = new AudioManager();
 
 		this.setupUI();
 	}
@@ -210,7 +212,15 @@ export class Engine {
 			moveLeftBtn: document.getElementById("move-left-btn"),
 			moveRightBtn: document.getElementById("move-right-btn"),
 			movesLeftVal: document.getElementById("moves-left-val"),
+			sfxBtn: document.getElementById("sfx-btn"),
 		};
+
+		// Sync SFX button state with persisted preference
+		this._updateSfxBtn();
+		this.ui.sfxBtn.addEventListener("click", () => {
+			this.audio.toggle();
+			this._updateSfxBtn();
+		});
 
 		this.ui.moveLeftBtn.addEventListener("click", () => this.startMove(-1));
 		this.ui.moveRightBtn.addEventListener("click", () => this.startMove(1));
@@ -378,6 +388,13 @@ export class Engine {
 		});
 	}
 
+	_updateSfxBtn() {
+		this.ui.sfxBtn.textContent = this.audio.enabled ? "🔊" : "🔇";
+		this.ui.sfxBtn.title = this.audio.enabled
+			? "Sound On (click to mute)"
+			: "Sound Off (click to unmute)";
+	}
+
 	activeTank() {
 		return this.currentPlayer === 1 ? this.p1 : this.p2;
 	}
@@ -414,6 +431,8 @@ export class Engine {
 		this.state = "AIMING";
 		this.ui.fireBtn.disabled = tank.turnsLeft <= 0;
 		this.ui.fireBtn.style.opacity = tank.turnsLeft <= 0 ? 0.5 : 1;
+
+		this.audio.playTurnChange();
 
 		// In single-player mode, schedule AI turn for player 2
 		if (this.singlePlayer && player === 2) {
@@ -512,6 +531,8 @@ export class Engine {
 		const tank = this.activeTank();
 		if (tank.movesLeft <= 0) return;
 
+		this.audio.playMove();
+
 		const MOVE_STEP = 60; // pixels per move
 		tank.movesLeft--;
 		this.ui.movesLeftVal.innerText = tank.movesLeft;
@@ -533,6 +554,8 @@ export class Engine {
 		this.state = "FIRING";
 		this.ui.fireBtn.disabled = true;
 		this.ui.fireBtn.style.opacity = 0.5;
+
+		this.audio.playFire();
 
 		const tank = this.activeTank();
 
@@ -558,6 +581,9 @@ export class Engine {
 
 	createExplosion(x, y, radius, damage, ownerId, baseScore = 0) {
 		this.terrain.destroyCircle(x, y, radius);
+
+		// Scale explosion sound by radius (small ~20, medium ~50, large ~130)
+		this.audio.playExplosion(Math.min(1, radius / 100));
 
 		const shooter = ownerId === 1 ? this.p1 : this.p2;
 		const tanks = [this.p1, this.p2];
@@ -610,14 +636,19 @@ export class Engine {
 		let msg;
 		if (s1 > s2) {
 			msg = `Player 1 Wins! (${s1} pts)`;
+			this.audio.playVictory();
 		} else if (s2 > s1) {
 			msg = `${p2Name} Wins! (${s2} pts)`;
+			this.singlePlayer ? this.audio.playDefeat() : this.audio.playVictory();
 		} else if (this.p1.health > this.p2.health) {
 			msg = `Player 1 Wins! (health tiebreaker)`;
+			this.audio.playVictory();
 		} else if (this.p2.health > this.p1.health) {
 			msg = `${p2Name} Wins! (health tiebreaker)`;
+			this.singlePlayer ? this.audio.playDefeat() : this.audio.playVictory();
 		} else {
 			msg = `It's a Draw!`;
+			this.audio.playDefeat();
 		}
 		document.getElementById("winner-text").innerText = msg;
 	}
