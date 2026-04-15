@@ -161,6 +161,8 @@ canvas {
     margin-top: 6px;
     line-height: 1;
     transition: opacity 0.2s;
+    position: relative;
+    z-index: 110;
 }
 
 #sfx-btn:hover {
