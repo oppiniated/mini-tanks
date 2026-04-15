@@ -9,17 +9,24 @@ import { ClusterBomb } from "./weapons/ClusterBomb.js";
 import { DirtBall } from "./weapons/DirtBall.js";
 import { DirtMover } from "./weapons/DirtMover.js";
 import { Earthquake } from "./weapons/Earthquake.js";
+import { Firecracker } from "./weapons/Firecracker.js";
 import { FunkyBomb } from "./weapons/FunkyBomb.js";
 import { HeavyShell } from "./weapons/HeavyShell.js";
 import { HomingMissile } from "./weapons/HomingMissile.js";
+import { Jackhammer } from "./weapons/Jackhammer.js";
 import { Laser } from "./weapons/Laser.js";
+import { LightningStrike } from "./weapons/LightningStrike.js";
 import { MegaNuke } from "./weapons/MegaNuke.js";
+import { MeteorShower } from "./weapons/MeteorShower.js";
 import { Napalm } from "./weapons/Napalm.js";
+import { PileDriver } from "./weapons/PileDriver.js";
 import { Roller } from "./weapons/Roller.js";
+import { ScatterShot } from "./weapons/ScatterShot.js";
 import { SingleShot } from "./weapons/SingleShot.js";
 import { Sniper } from "./weapons/Sniper.js";
 import { Splitter } from "./weapons/Splitter.js";
 import { Spray } from "./weapons/Spray.js";
+import { Volcano } from "./weapons/Volcano.js";
 
 const WEAPONS = [
 	SingleShot,
@@ -41,6 +48,13 @@ const WEAPONS = [
 	DirtMover,
 	DirtBall,
 	Earthquake,
+	Jackhammer,
+	Firecracker,
+	PileDriver,
+	Volcano,
+	LightningStrike,
+	MeteorShower,
+	ScatterShot,
 ];
 
 export class Engine {
