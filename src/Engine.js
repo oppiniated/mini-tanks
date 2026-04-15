@@ -28,6 +28,34 @@ import { Splitter } from "./weapons/Splitter.js";
 import { Spray } from "./weapons/Spray.js";
 import { Volcano } from "./weapons/Volcano.js";
 
+// Weapons the AI will randomly cycle through — excludes terrain-only tools
+// (DirtMover, DirtBall) and AirStrike (whose angle maps to canvas X, not trajectory).
+const AI_WEAPONS = [
+	SingleShot,
+	HeavyShell,
+	MegaNuke,
+	BabyNuke,
+	Sniper,
+	Laser,
+	Napalm,
+	Spray,
+	FunkyBomb,
+	Splitter,
+	ClusterBomb,
+	Bouncer,
+	Boomerang,
+	Roller,
+	HomingMissile,
+	Earthquake,
+	Jackhammer,
+	Firecracker,
+	PileDriver,
+	Volcano,
+	LightningStrike,
+	MeteorShower,
+	ScatterShot,
+];
+
 const WEAPONS = [
 	SingleShot,
 	HeavyShell,
@@ -336,6 +364,12 @@ export class Engine {
 
 			const tank = this.p2;
 			const target = this.p1;
+
+			// Pick a random offensive weapon
+			const chosenWeapon =
+				AI_WEAPONS[Math.floor(Math.random() * AI_WEAPONS.length)];
+			tank.weaponClass = chosenWeapon;
+			this.ui.weaponSelectBtn.innerText = `Weapon: ${new chosenWeapon().name}`;
 
 			const basePower = 50 + Math.random() * 30; // 50–80
 			const bestAngle = this.aiComputeAngle(tank, target, basePower);
