@@ -65,13 +65,24 @@
                     <button id="btn-1p" class="mode-btn">⚔️ 1 Player</button>
                     <button id="btn-2p" class="mode-btn">👥 2 Players</button>
                 </div>
-                <div id="difficulty-select" class="hidden">
-                    <p style="color:#94a3b8; margin-bottom:12px;">Select Difficulty</p>
-                    <div style="display:flex; gap:12px; justify-content:center;">
-                        <button class="diff-btn" data-diff="easy">😊 Easy</button>
-                        <button class="diff-btn" data-diff="medium">🎯 Medium</button>
-                        <button class="diff-btn" data-diff="hard">💀 Hard</button>
+                <div id="color-section" class="hidden">
+                    <div id="p1-color-row">
+                        <p class="color-label" id="p1-color-label">Your Tank Color</p>
+                        <div class="color-swatches" id="p1-swatches"></div>
                     </div>
+                    <div id="p2-color-row" class="hidden">
+                        <p class="color-label">Player 2 Color</p>
+                        <div class="color-swatches" id="p2-swatches"></div>
+                    </div>
+                    <div id="difficulty-select" class="hidden">
+                        <p class="color-label" style="margin-top:8px;">Difficulty</p>
+                        <div style="display:flex; gap:12px; justify-content:center; margin-bottom:4px;">
+                            <button class="diff-btn" data-diff="easy">😊 Easy</button>
+                            <button class="diff-btn selected" data-diff="medium">🎯 Medium</button>
+                            <button class="diff-btn" data-diff="hard">💀 Hard</button>
+                        </div>
+                    </div>
+                    <button id="start-btn" class="mode-btn start-btn">▶ Start Game</button>
                 </div>
             </div>
 

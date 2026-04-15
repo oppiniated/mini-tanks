@@ -56,6 +56,19 @@ const AI_WEAPONS = [
 	ScatterShot,
 ];
 
+const TANK_COLORS = [
+	"#3b82f6", // Blue
+	"#10b981", // Emerald
+	"#f43f5e", // Rose
+	"#f59e0b", // Amber
+	"#8b5cf6", // Violet
+	"#ec4899", // Pink
+	"#06b6d4", // Cyan
+	"#84cc16", // Lime
+	"#f97316", // Orange
+	"#e2e8f0", // Silver
+];
+
 const WEAPONS = [
 	SingleShot,
 	HeavyShell,
@@ -102,6 +115,8 @@ export class Engine {
 		this.moveDirection = 0;
 		this.singlePlayer = false;
 		this.aiDifficulty = "medium"; // 'easy' | 'medium' | 'hard'
+		this.p1Color = TANK_COLORS[0];
+		this.p2Color = TANK_COLORS[1];
 
 		this.setupUI();
 	}
@@ -121,12 +136,22 @@ export class Engine {
 		this.terrain.generate();
 
 		const p1X = this.canvas.width * 0.2;
-		this.p1 = new Tank(1, p1X, this.terrain.getSurfaceHeight(p1X), "#3b82f6");
+		this.p1 = new Tank(
+			1,
+			p1X,
+			this.terrain.getSurfaceHeight(p1X),
+			this.p1Color,
+		);
 		this.p1.targetAngle = 45;
 		this.p1.weaponClass = SingleShot;
 
 		const p2X = this.canvas.width * 0.8;
-		this.p2 = new Tank(2, p2X, this.terrain.getSurfaceHeight(p2X), "#10b981");
+		this.p2 = new Tank(
+			2,
+			p2X,
+			this.terrain.getSurfaceHeight(p2X),
+			this.p2Color,
+		);
 		this.p2.targetAngle = 135;
 		this.p2.weaponClass = SingleShot;
 
@@ -139,9 +164,13 @@ export class Engine {
 		this.updateScoreUI();
 	}
 
-	startGame(mode, difficulty = "medium") {
+	startGame(mode) {
 		this.singlePlayer = mode === "single";
-		this.aiDifficulty = difficulty;
+		// CPU auto-picks a color that doesn't clash with P1's choice
+		if (this.singlePlayer) {
+			this.p2Color =
+				TANK_COLORS.find((c) => c !== this.p1Color) ?? TANK_COLORS[1];
+		}
 		document.getElementById("start-screen").classList.add("hidden");
 		this.reset();
 	}
@@ -188,7 +217,10 @@ export class Engine {
 
 		document.getElementById("restart-btn").addEventListener("click", () => {
 			document.getElementById("game-over-screen").classList.add("hidden");
+			document.getElementById("color-section").classList.add("hidden");
 			document.getElementById("difficulty-select").classList.add("hidden");
+			document.getElementById("btn-1p").classList.remove("selected");
+			document.getElementById("btn-2p").classList.remove("selected");
 			document.getElementById("start-screen").classList.remove("hidden");
 		});
 
@@ -259,21 +291,63 @@ export class Engine {
 			this.ui.weaponModal.classList.add("hidden");
 		});
 
-		document.getElementById("btn-1p").addEventListener("click", () => {
-			document.getElementById("difficulty-select").classList.remove("hidden");
-			document.querySelectorAll(".diff-btn").forEach((btn) => {
-				btn.addEventListener(
-					"click",
-					() => {
-						this.startGame("single", btn.dataset.diff);
-					},
-					{ once: true },
-				);
+		// Generate color swatches for both players
+		const makeSwatches = (containerId, isP1) => {
+			const container = document.getElementById(containerId);
+			const defaultIdx = isP1 ? 0 : 1;
+			TANK_COLORS.forEach((color, i) => {
+				const btn = document.createElement("button");
+				btn.className = `color-swatch${i === defaultIdx ? " selected" : ""}`;
+				btn.style.background = color;
+				btn.title = color;
+				btn.addEventListener("click", () => {
+					container.querySelectorAll(".color-swatch").forEach((b) => {
+						b.classList.remove("selected");
+					});
+					btn.classList.add("selected");
+					if (isP1) this.p1Color = color;
+					else this.p2Color = color;
+				});
+				container.appendChild(btn);
+			});
+		};
+		makeSwatches("p1-swatches", true);
+		makeSwatches("p2-swatches", false);
+
+		// Difficulty buttons update aiDifficulty (medium is default / pre-selected)
+		document.querySelectorAll(".diff-btn").forEach((btn) => {
+			btn.addEventListener("click", () => {
+				document.querySelectorAll(".diff-btn").forEach((b) => {
+					b.classList.remove("selected");
+				});
+				btn.classList.add("selected");
+				this.aiDifficulty = btn.dataset.diff;
 			});
 		});
 
+		// Mode buttons reveal color section (+ difficulty for 1P)
+		document.getElementById("btn-1p").addEventListener("click", () => {
+			this._pendingMode = "single";
+			document.getElementById("p1-color-label").innerText = "Your Tank Color";
+			document.getElementById("p2-color-row").classList.add("hidden");
+			document.getElementById("difficulty-select").classList.remove("hidden");
+			document.getElementById("color-section").classList.remove("hidden");
+			document.getElementById("btn-1p").classList.add("selected");
+			document.getElementById("btn-2p").classList.remove("selected");
+		});
+
 		document.getElementById("btn-2p").addEventListener("click", () => {
-			this.startGame("two");
+			this._pendingMode = "two";
+			document.getElementById("p1-color-label").innerText = "Player 1 Color";
+			document.getElementById("p2-color-row").classList.remove("hidden");
+			document.getElementById("difficulty-select").classList.add("hidden");
+			document.getElementById("color-section").classList.remove("hidden");
+			document.getElementById("btn-2p").classList.add("selected");
+			document.getElementById("btn-1p").classList.remove("selected");
+		});
+
+		document.getElementById("start-btn").addEventListener("click", () => {
+			this.startGame(this._pendingMode ?? "two");
 		});
 	}
 
@@ -327,7 +401,9 @@ export class Engine {
 
 		const name = this.singlePlayer && player === 2 ? "CPU" : `Player ${player}`;
 		this.ui.turnIndicator.innerText = `${name}'s Turn`;
-		this.ui.turnIndicator.style.color = player === 1 ? "#3b82f6" : "#10b981";
+		this.ui.turnIndicator.style.color = (
+			player === 1 ? this.p1 : this.p2
+		).color;
 		this.ui.weaponSelectBtn.innerText = `Weapon: ${new tank.weaponClass().name}`;
 
 		tank.movesLeft = 4;
