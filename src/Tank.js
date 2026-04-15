@@ -8,7 +8,7 @@ export class Tank {
 		this.health = 100;
 		this.score = 0;
 		this.turnsLeft = 10;
-		this.targetAngle = 45; // 0 is right, 180 is left
+		this.targetAngle = 45; // 0 is right, 90 is up, 180 is left, 270 is down
 		this.power = 50; // 0 to 100
 		this.movesLeft = 4;
 

@@ -9,17 +9,24 @@ import { ClusterBomb } from "./weapons/ClusterBomb.js";
 import { DirtBall } from "./weapons/DirtBall.js";
 import { DirtMover } from "./weapons/DirtMover.js";
 import { Earthquake } from "./weapons/Earthquake.js";
+import { Firecracker } from "./weapons/Firecracker.js";
 import { FunkyBomb } from "./weapons/FunkyBomb.js";
 import { HeavyShell } from "./weapons/HeavyShell.js";
 import { HomingMissile } from "./weapons/HomingMissile.js";
+import { Jackhammer } from "./weapons/Jackhammer.js";
 import { Laser } from "./weapons/Laser.js";
+import { LightningStrike } from "./weapons/LightningStrike.js";
 import { MegaNuke } from "./weapons/MegaNuke.js";
+import { MeteorShower } from "./weapons/MeteorShower.js";
 import { Napalm } from "./weapons/Napalm.js";
+import { PileDriver } from "./weapons/PileDriver.js";
 import { Roller } from "./weapons/Roller.js";
+import { ScatterShot } from "./weapons/ScatterShot.js";
 import { SingleShot } from "./weapons/SingleShot.js";
 import { Sniper } from "./weapons/Sniper.js";
 import { Splitter } from "./weapons/Splitter.js";
 import { Spray } from "./weapons/Spray.js";
+import { Volcano } from "./weapons/Volcano.js";
 
 const WEAPONS = [
 	SingleShot,
@@ -41,6 +48,13 @@ const WEAPONS = [
 	DirtMover,
 	DirtBall,
 	Earthquake,
+	Jackhammer,
+	Firecracker,
+	PileDriver,
+	Volcano,
+	LightningStrike,
+	MeteorShower,
+	ScatterShot,
 ];
 
 export class Engine {
@@ -156,6 +170,32 @@ export class Engine {
 			const val = parseInt(e.target.value, 10);
 			this.ui.powerVal.innerText = val;
 			this.activeTank().power = val;
+		});
+
+		document.addEventListener("keydown", (e) => {
+			if (this.state !== "AIMING") return;
+			// Prevent arrow keys from scrolling the page
+			if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+				e.preventDefault();
+			}
+			const tank = this.activeTank();
+			if (e.key === "ArrowUp") {
+				tank.targetAngle = (tank.targetAngle + 1) % 360;
+				this.ui.angleSlider.value = tank.targetAngle;
+				this.ui.angleVal.innerText = tank.targetAngle;
+			} else if (e.key === "ArrowDown") {
+				tank.targetAngle = (tank.targetAngle - 1 + 360) % 360;
+				this.ui.angleSlider.value = tank.targetAngle;
+				this.ui.angleVal.innerText = tank.targetAngle;
+			} else if (e.key === "ArrowRight") {
+				tank.power = Math.min(100, tank.power + 1);
+				this.ui.powerSlider.value = tank.power;
+				this.ui.powerVal.innerText = tank.power;
+			} else if (e.key === "ArrowLeft") {
+				tank.power = Math.max(0, tank.power - 1);
+				this.ui.powerSlider.value = tank.power;
+				this.ui.powerVal.innerText = tank.power;
+			}
 		});
 
 		this.ui.fireBtn.addEventListener("click", () => {
