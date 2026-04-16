@@ -133,6 +133,7 @@ export class Engine {
 
 	reset() {
 		this.aiThinking = false;
+		this.lastAIWeapon = null;
 		this.projectiles = [];
 		this.particles = [];
 
@@ -471,18 +472,12 @@ export class Engine {
 			const tank = this.p2;
 			const target = this.p1;
 
-			// Heuristic weapon selection based on game state
 			tank.weaponClass = this.aiChooseWeapon(tank, target);
+			this.lastAIWeapon = tank.weaponClass;
 			this.ui.weaponSelectBtn.innerText = `Weapon: ${new tank.weaponClass().name}`;
 
 			const basePower = 50 + Math.random() * 30; // 50–80
 			const bestAngle = this.aiComputeAngle(tank, target, basePower);
-
-			// If the best trajectory passes very close to terrain (bestDist > threshold)
-			// and moves are available, reposition toward the target for a clearer shot
-			if (tank.movesLeft > 0) {
-				this._aiConsiderReposition(tank, target, basePower, bestAngle);
-			}
 
 			const angleNoise = (Math.random() - 0.5) * 2 * noise;
 			const pNoise = (Math.random() - 0.5) * 2 * powerNoise;
@@ -497,38 +492,6 @@ export class Engine {
 
 			this.fireWeapon();
 		}, 1500);
-	}
-
-	/**
-	 * Opportunistically reposition if moving toward the target would yield a
-	 * meaningfully better (lower-angle, more direct) shot. Takes at most one
-	 * move per turn so the CPU doesn't waste all moves repositioning.
-	 */
-	_aiConsiderReposition(tank, target, power, currentBestAngle) {
-		// Only reposition if the current best angle is very steep (>100°) —
-		// meaning the CPU is likely lobbing over a hill.
-		if (currentBestAngle <= 100) return;
-
-		const MOVE_STEP = 60;
-		const towardTarget = target.x > tank.x ? 1 : -1;
-		const newX = Math.max(
-			40,
-			Math.min(this.canvas.width - 40, tank.x + towardTarget * MOVE_STEP),
-		);
-		const newY = this.terrain.getSurfaceHeight(newX);
-
-		const savedX = tank.x;
-		const savedY = tank.y;
-		tank.x = newX;
-		tank.y = newY;
-		const angleAfterMove = this.aiComputeAngle(tank, target, power);
-		tank.x = savedX;
-		tank.y = savedY;
-
-		// Only move if the new position gives a meaningfully flatter angle (>15° improvement)
-		if (angleAfterMove < currentBestAngle - 15) {
-			this.startMove(towardTarget);
-		}
 	}
 
 	/**
@@ -557,8 +520,8 @@ export class Engine {
 			// ── Precision / long-range ───────────────────────────────────────────
 			[SingleShot, () => 0.4],
 			[HeavyShell, () => (dist > 300 ? 0.5 : 0.3)],
-			[Sniper, () => (dist > 400 ? 0.7 : 0.2)],
-			[Laser, () => (dist > 350 ? 0.65 : 0.25)],
+			[Sniper, () => (dist > 400 ? 0.58 : 0.2)],
+			[Laser, () => (dist > 350 ? 0.52 : 0.25)],
 			[Boomerang, () => (dist > 250 ? 0.5 : 0.2)],
 			[Bouncer, () => (dist < 300 ? 0.55 : 0.3)],
 			[Roller, () => (dist < 200 ? 0.6 : 0.3)],
@@ -588,8 +551,8 @@ export class Engine {
 			[ClusterBomb, () => (dist < 350 ? 0.6 : dist < 500 ? 0.4 : 0.2)],
 			[ScatterShot, () => (dist < 300 ? 0.55 : 0.3)],
 
-			// ── Homing — always decent, great on hard ───────────────────────────
-			[HomingMissile, () => (isHard ? 0.75 : 0.5)],
+			// ── Homing — decent option but capped to avoid total dominance ────────
+			[HomingMissile, () => (isHard ? 0.55 : 0.4)],
 
 			// ── Terrain / zonal — situational ────────────────────────────────────
 			[
@@ -626,8 +589,10 @@ export class Engine {
 			const scoreFn = scores.get(WeaponClass);
 			const base = scoreFn ? scoreFn() : 0.3;
 			// Scale toward optimal on higher difficulties; add jitter on easy
-			const jitter = (Math.random() - 0.5) * (isHard ? 0.08 : 0.35);
-			const final = base * skillMult + jitter;
+			const jitter = (Math.random() - 0.5) * (isHard ? 0.18 : 0.35);
+			// Penalise repeating the same weapon two turns in a row
+			const repeatPenalty = WeaponClass === this.lastAIWeapon ? 0.3 : 0;
+			const final = base * skillMult + jitter - repeatPenalty;
 			if (final > bestScore) {
 				bestScore = final;
 				bestWeapon = WeaponClass;
@@ -646,9 +611,6 @@ export class Engine {
 
 		const x0 = tank.x;
 		const y0 = tank.y - tank.height;
-		// Only block on terrain that is clearly between the tank and target,
-		// not right at the launch point. Skip terrain checks within this radius.
-		const clearanceRadius = 100;
 
 		let bestAngle = 135;
 		let bestDist = Infinity;
@@ -661,7 +623,6 @@ export class Engine {
 			let vy = -Math.sin(rad) * v;
 
 			let closestDist = Infinity;
-			let blockedByTerrain = false;
 			for (let t = 0; t < maxTime; t += dt) {
 				x += vx * dt;
 				y += vy * dt;
@@ -669,67 +630,17 @@ export class Engine {
 				vx += wind * 1.5 * dt;
 
 				if (y > this.canvas.height + 100) break;
-
-				// Only check terrain once the projectile has cleared the
-				// immediate area around the tank (avoids false positives at launch)
-				const travelDist = Math.hypot(x - x0, y - y0);
-				if (travelDist > clearanceRadius && this.terrain.checkCollision(x, y)) {
-					blockedByTerrain = true;
-					break;
-				}
 
 				const dist = Math.hypot(x - target.x, y - target.y);
 				if (dist < closestDist) closestDist = dist;
 			}
 
-			if (!blockedByTerrain && closestDist < bestDist) {
+			if (closestDist < bestDist) {
 				bestDist = closestDist;
 				bestAngle = deg;
 			}
 		}
 
-		// If every angle is still terrain-blocked (very rare), fall back to
-		// the best angle ignoring terrain — at least the CPU fires.
-		if (bestDist === Infinity) {
-			return this._aiComputeAngleUnchecked(tank, target, power);
-		}
-
-		return bestAngle;
-	}
-
-	// Fallback scan with no terrain check — used only when every checked
-	// angle is blocked (e.g. tank is buried).
-	_aiComputeAngleUnchecked(tank, target, power) {
-		const v = power * 10;
-		const g = 600;
-		const wind = this.wind;
-		const dt = 0.05;
-		const maxTime = 6.0;
-		const x0 = tank.x;
-		const y0 = tank.y - tank.height;
-		let bestAngle = 135;
-		let bestDist = Infinity;
-		for (let deg = 1; deg < 180; deg++) {
-			const rad = (deg * Math.PI) / 180;
-			let x = x0;
-			let y = y0;
-			let vx = Math.cos(rad) * v;
-			let vy = -Math.sin(rad) * v;
-			let closest = Infinity;
-			for (let t = 0; t < maxTime; t += dt) {
-				x += vx * dt;
-				y += vy * dt;
-				vy += g * dt;
-				vx += wind * 1.5 * dt;
-				if (y > this.canvas.height + 100) break;
-				const d = Math.hypot(x - target.x, y - target.y);
-				if (d < closest) closest = d;
-			}
-			if (closest < bestDist) {
-				bestDist = closest;
-				bestAngle = deg;
-			}
-		}
 		return bestAngle;
 	}
 
