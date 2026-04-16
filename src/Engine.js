@@ -27,6 +27,7 @@ import { SingleShot } from "./weapons/SingleShot.js";
 import { Sniper } from "./weapons/Sniper.js";
 import { Splitter } from "./weapons/Splitter.js";
 import { Spray } from "./weapons/Spray.js";
+import { Tracer } from "./weapons/Tracer.js";
 import { Volcano } from "./weapons/Volcano.js";
 
 // Weapons the AI will randomly cycle through — excludes terrain-only tools
@@ -89,6 +90,7 @@ const WEAPONS = [
 	HomingMissile,
 	DirtMover,
 	DirtBall,
+	Tracer,
 	Earthquake,
 	Jackhammer,
 	Firecracker,
@@ -474,7 +476,16 @@ export class Engine {
 			this.ui.weaponSelectBtn.innerText = `Weapon: ${new tank.weaponClass().name}`;
 
 			const basePower = 50 + Math.random() * 30; // 50–80
-			const bestAngle = this.aiComputeAngle(tank, target, basePower);
+
+			// Check if terrain blocks the best trajectory; reposition if so
+			let bestAngle = this.aiComputeAngle(tank, target, basePower);
+			if (bestAngle === null && tank.movesLeft > 0) {
+				this._aiReposition(tank, target, basePower);
+				return; // _aiReposition will call scheduleAITurn again after moving
+			}
+
+			// Fallback if still null after repositioning (all paths blocked)
+			if (bestAngle === null) bestAngle = tank.x > target.x ? 135 : 45;
 
 			const angleNoise = (Math.random() - 0.5) * 2 * noise;
 			const pNoise = (Math.random() - 0.5) * 2 * powerNoise;
@@ -489,6 +500,57 @@ export class Engine {
 
 			this.fireWeapon();
 		}, 1500);
+	}
+
+	/**
+	 * Move the CPU one step toward the direction that clears terrain, then
+	 * re-enter the AI turn. Called when aiComputeAngle returns null.
+	 */
+	_aiReposition(tank, target, power) {
+		// Try moving toward the target first; if that side is still blocked,
+		// try the opposite direction
+		const towardTarget = target.x > tank.x ? 1 : -1;
+
+		// Simulate what angle we'd get after each candidate move
+		const MOVE_STEP = 60;
+		for (const dir of [towardTarget, -towardTarget]) {
+			const newX = Math.max(
+				40,
+				Math.min(this.canvas.width - 40, tank.x + dir * MOVE_STEP),
+			);
+			const newY = this.terrain.getSurfaceHeight(newX);
+			// Temporarily test angles from the new position
+			const savedX = tank.x;
+			const savedY = tank.y;
+			tank.x = newX;
+			tank.y = newY;
+			const testAngle = this.aiComputeAngle(tank, target, power);
+			tank.x = savedX;
+			tank.y = savedY;
+
+			if (testAngle !== null) {
+				// This direction gives a clear shot — take the move
+				this.startMove(dir);
+				// Wait for the MOVING animation, then re-enter AI decision
+				const poll = setInterval(() => {
+					if (this.state === "AIMING" && this.currentPlayer === 2) {
+						clearInterval(poll);
+						this.scheduleAITurn();
+					}
+				}, 100);
+				return;
+			}
+		}
+
+		// No clear shot found even after moving — just fire anyway
+		const fallback = tank.x > target.x ? 135 : 45;
+		tank.targetAngle = fallback;
+		tank.power = 70;
+		this.ui.angleSlider.value = tank.targetAngle;
+		this.ui.angleVal.innerText = tank.targetAngle;
+		this.ui.powerSlider.value = tank.power;
+		this.ui.powerVal.innerText = tank.power;
+		this.fireWeapon();
 	}
 
 	/**
@@ -618,6 +680,7 @@ export class Engine {
 			let vy = -Math.sin(rad) * v;
 
 			let closestDist = Infinity;
+			let blockedByTerrain = false;
 			for (let t = 0; t < maxTime; t += dt) {
 				x += vx * dt;
 				y += vy * dt;
@@ -626,17 +689,25 @@ export class Engine {
 
 				if (y > this.canvas.height + 100) break;
 
+				// Abort this angle if terrain blocks the path
+				if (this.terrain.checkCollision(x, y)) {
+					blockedByTerrain = true;
+					break;
+				}
+
 				const dist = Math.hypot(x - target.x, y - target.y);
 				if (dist < closestDist) closestDist = dist;
 			}
 
-			if (closestDist < bestDist) {
+			if (!blockedByTerrain && closestDist < bestDist) {
 				bestDist = closestDist;
 				bestAngle = deg;
 			}
 		}
 
-		return bestAngle;
+		// bestDist still Infinity means every angle is terrain-blocked — caller
+		// should reposition. Return null to signal this.
+		return bestDist === Infinity ? null : bestAngle;
 	}
 
 	startMove(direction) {
@@ -875,10 +946,15 @@ export class Engine {
 		// Update particles
 		for (let i = this.particles.length - 1; i >= 0; i--) {
 			const part = this.particles[i];
-			part.x += part.vx;
-			part.y += part.vy;
-			part.life -= dt * 2;
-			if (part.life <= 0) this.particles.splice(i, 1);
+			if (typeof part.update === "function") {
+				part.update(dt);
+				if (part.dead) this.particles.splice(i, 1);
+			} else {
+				part.x += part.vx;
+				part.y += part.vy;
+				part.life -= dt * 2;
+				if (part.life <= 0) this.particles.splice(i, 1);
+			}
 		}
 
 		// Check if turn ended
@@ -927,12 +1003,16 @@ export class Engine {
 
 		// Draw particles
 		for (const part of this.particles) {
-			this.ctx.globalAlpha = part.life;
-			this.ctx.fillStyle = part.color;
-			this.ctx.beginPath();
-			this.ctx.arc(part.x, part.y, 2, 0, Math.PI * 2);
-			this.ctx.fill();
-			this.ctx.globalAlpha = 1.0;
+			if (typeof part.draw === "function") {
+				part.draw(this.ctx);
+			} else {
+				this.ctx.globalAlpha = part.life;
+				this.ctx.fillStyle = part.color;
+				this.ctx.beginPath();
+				this.ctx.arc(part.x, part.y, 2, 0, Math.PI * 2);
+				this.ctx.fill();
+				this.ctx.globalAlpha = 1.0;
+			}
 		}
 	}
 }
