@@ -476,16 +476,13 @@ export class Engine {
 			this.ui.weaponSelectBtn.innerText = `Weapon: ${new tank.weaponClass().name}`;
 
 			const basePower = 50 + Math.random() * 30; // 50–80
+			const bestAngle = this.aiComputeAngle(tank, target, basePower);
 
-			// Check if terrain blocks the best trajectory; reposition if so
-			let bestAngle = this.aiComputeAngle(tank, target, basePower);
-			if (bestAngle === null && tank.movesLeft > 0) {
-				this._aiReposition(tank, target, basePower);
-				return; // _aiReposition will call scheduleAITurn again after moving
+			// If the best trajectory passes very close to terrain (bestDist > threshold)
+			// and moves are available, reposition toward the target for a clearer shot
+			if (tank.movesLeft > 0) {
+				this._aiConsiderReposition(tank, target, basePower, bestAngle);
 			}
-
-			// Fallback if still null after repositioning (all paths blocked)
-			if (bestAngle === null) bestAngle = tank.x > target.x ? 135 : 45;
 
 			const angleNoise = (Math.random() - 0.5) * 2 * noise;
 			const pNoise = (Math.random() - 0.5) * 2 * powerNoise;
@@ -503,54 +500,35 @@ export class Engine {
 	}
 
 	/**
-	 * Move the CPU one step toward the direction that clears terrain, then
-	 * re-enter the AI turn. Called when aiComputeAngle returns null.
+	 * Opportunistically reposition if moving toward the target would yield a
+	 * meaningfully better (lower-angle, more direct) shot. Takes at most one
+	 * move per turn so the CPU doesn't waste all moves repositioning.
 	 */
-	_aiReposition(tank, target, power) {
-		// Try moving toward the target first; if that side is still blocked,
-		// try the opposite direction
-		const towardTarget = target.x > tank.x ? 1 : -1;
+	_aiConsiderReposition(tank, target, power, currentBestAngle) {
+		// Only reposition if the current best angle is very steep (>100°) —
+		// meaning the CPU is likely lobbing over a hill.
+		if (currentBestAngle <= 100) return;
 
-		// Simulate what angle we'd get after each candidate move
 		const MOVE_STEP = 60;
-		for (const dir of [towardTarget, -towardTarget]) {
-			const newX = Math.max(
-				40,
-				Math.min(this.canvas.width - 40, tank.x + dir * MOVE_STEP),
-			);
-			const newY = this.terrain.getSurfaceHeight(newX);
-			// Temporarily test angles from the new position
-			const savedX = tank.x;
-			const savedY = tank.y;
-			tank.x = newX;
-			tank.y = newY;
-			const testAngle = this.aiComputeAngle(tank, target, power);
-			tank.x = savedX;
-			tank.y = savedY;
+		const towardTarget = target.x > tank.x ? 1 : -1;
+		const newX = Math.max(
+			40,
+			Math.min(this.canvas.width - 40, tank.x + towardTarget * MOVE_STEP),
+		);
+		const newY = this.terrain.getSurfaceHeight(newX);
 
-			if (testAngle !== null) {
-				// This direction gives a clear shot — take the move
-				this.startMove(dir);
-				// Wait for the MOVING animation, then re-enter AI decision
-				const poll = setInterval(() => {
-					if (this.state === "AIMING" && this.currentPlayer === 2) {
-						clearInterval(poll);
-						this.scheduleAITurn();
-					}
-				}, 100);
-				return;
-			}
+		const savedX = tank.x;
+		const savedY = tank.y;
+		tank.x = newX;
+		tank.y = newY;
+		const angleAfterMove = this.aiComputeAngle(tank, target, power);
+		tank.x = savedX;
+		tank.y = savedY;
+
+		// Only move if the new position gives a meaningfully flatter angle (>15° improvement)
+		if (angleAfterMove < currentBestAngle - 15) {
+			this.startMove(towardTarget);
 		}
-
-		// No clear shot found even after moving — just fire anyway
-		const fallback = tank.x > target.x ? 135 : 45;
-		tank.targetAngle = fallback;
-		tank.power = 70;
-		this.ui.angleSlider.value = tank.targetAngle;
-		this.ui.angleVal.innerText = tank.targetAngle;
-		this.ui.powerSlider.value = tank.power;
-		this.ui.powerVal.innerText = tank.power;
-		this.fireWeapon();
 	}
 
 	/**
@@ -668,6 +646,9 @@ export class Engine {
 
 		const x0 = tank.x;
 		const y0 = tank.y - tank.height;
+		// Only block on terrain that is clearly between the tank and target,
+		// not right at the launch point. Skip terrain checks within this radius.
+		const clearanceRadius = 100;
 
 		let bestAngle = 135;
 		let bestDist = Infinity;
@@ -689,8 +670,10 @@ export class Engine {
 
 				if (y > this.canvas.height + 100) break;
 
-				// Abort this angle if terrain blocks the path
-				if (this.terrain.checkCollision(x, y)) {
+				// Only check terrain once the projectile has cleared the
+				// immediate area around the tank (avoids false positives at launch)
+				const travelDist = Math.hypot(x - x0, y - y0);
+				if (travelDist > clearanceRadius && this.terrain.checkCollision(x, y)) {
 					blockedByTerrain = true;
 					break;
 				}
@@ -705,9 +688,49 @@ export class Engine {
 			}
 		}
 
-		// bestDist still Infinity means every angle is terrain-blocked — caller
-		// should reposition. Return null to signal this.
-		return bestDist === Infinity ? null : bestAngle;
+		// If every angle is still terrain-blocked (very rare), fall back to
+		// the best angle ignoring terrain — at least the CPU fires.
+		if (bestDist === Infinity) {
+			return this._aiComputeAngleUnchecked(tank, target, power);
+		}
+
+		return bestAngle;
+	}
+
+	// Fallback scan with no terrain check — used only when every checked
+	// angle is blocked (e.g. tank is buried).
+	_aiComputeAngleUnchecked(tank, target, power) {
+		const v = power * 10;
+		const g = 600;
+		const wind = this.wind;
+		const dt = 0.05;
+		const maxTime = 6.0;
+		const x0 = tank.x;
+		const y0 = tank.y - tank.height;
+		let bestAngle = 135;
+		let bestDist = Infinity;
+		for (let deg = 1; deg < 180; deg++) {
+			const rad = (deg * Math.PI) / 180;
+			let x = x0;
+			let y = y0;
+			let vx = Math.cos(rad) * v;
+			let vy = -Math.sin(rad) * v;
+			let closest = Infinity;
+			for (let t = 0; t < maxTime; t += dt) {
+				x += vx * dt;
+				y += vy * dt;
+				vy += g * dt;
+				vx += wind * 1.5 * dt;
+				if (y > this.canvas.height + 100) break;
+				const d = Math.hypot(x - target.x, y - target.y);
+				if (d < closest) closest = d;
+			}
+			if (closest < bestDist) {
+				bestDist = closest;
+				bestAngle = deg;
+			}
+		}
+		return bestAngle;
 	}
 
 	startMove(direction) {
